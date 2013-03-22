@@ -22,6 +22,7 @@ LOCAL_MODULE    := native-activity
 LOCAL_SRC_FILES := main.c \
                    file.c \
                    texture.c \
+                   framebuffer.c \
 				   stb/stb_image.c \
 				   libktx/checkheader.c \
 				   libktx/etcunpack.c \
