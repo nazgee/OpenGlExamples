@@ -29,7 +29,6 @@
 #include <assert.h>
 #include "texture.h"
 #include "file.h"
-#include "Teapot.h"
 #include "matrices.h"
 
 const int   TEXTURE_WIDTH   = 256;  // NOTE: texture size cannot be larger than
@@ -91,12 +90,12 @@ void scale(float factor)
 		scaleFactor = 1.0;
 	if(scaleFactor<0.05)
 		scaleFactor = 0.05;
-	Log("ScaleFactor: %f",scaleFactor);
+//	Log("ScaleFactor: %f",scaleFactor);
 	for (i=0;i<6;i++)
 	{
 		gTriangleVerticesPNG[i].x = gTriangleVertices[i].x * scaleFactor - (1-scaleFactor) ;
 		gTriangleVerticesPNG[i].y = gTriangleVertices[i].y * scaleFactor - (1-scaleFactor) ;
-		Log("X: %f Y: %f",gTriangleVerticesPNG[i].x,gTriangleVerticesPNG[i].y);
+//		Log("X: %f Y: %f",gTriangleVerticesPNG[i].x,gTriangleVerticesPNG[i].y);
 	}
 }
 
@@ -261,18 +260,14 @@ struct engine {
     GLuint renderableTexture,framebufferObject;
 };
 
-void drawTextureFBO(struct engine* engine) {
-int i=0;
-    glBindFramebuffer(GL_FRAMEBUFFER, engine->framebufferObject);
-
+void draw(){
     // clear buffer
     glClearColor(1, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0,0,2*engine->width,2*engine->height);
-    // draw a rotating teapot at the origin
-    glUseProgram(gProgramHandle);
 
-    glEnableVertexAttribArray( gaPositionHandle );
+	glUseProgram(gProgramHandle);
+
+	glEnableVertexAttribArray( gaPositionHandle );
 	CheckGlError( "glEnableVertexAttribArray" );
 
 	// Enable tex coords
@@ -285,17 +280,27 @@ int i=0;
 	// Enable texture sampler
 	glUniform1i( gaTexSamplerHandle, 0 );
 
-    glVertexAttribPointer( gaPositionHandle, 2, GL_FLOAT, GL_FALSE, sizeof(TriangleVertex), gTriangleVertices );
-    CheckGlError( "glVertexAttribPointer" );
+	glVertexAttribPointer( gaPositionHandle, 2, GL_FLOAT, GL_FALSE, sizeof(TriangleVertex), gTriangleVertices );
+	CheckGlError( "glVertexAttribPointer" );
 
-    glVertexAttribPointer( gaTexCoordHandle, 2, GL_FLOAT, GL_FALSE, sizeof(TriangleVertex), gTextureCoordsPNG );
-    CheckGlError( "glVertexAttribPointer" );
+	glVertexAttribPointer( gaTexCoordHandle, 2, GL_FLOAT, GL_FALSE, sizeof(TriangleVertex), gTextureCoordsPNG );
+	CheckGlError( "glVertexAttribPointer" );
 
-    // Set active texture
-    glBindTexture( GL_TEXTURE_2D, gTextureHandlePNG );
+	// Set active texture
+	glBindTexture( GL_TEXTURE_2D, gTextureHandlePNG );
 
-    glDrawArrays( GL_TRIANGLES, 0, 6 );
+	glDrawArrays( GL_TRIANGLES, 0, 6 );
 	CheckGlError("ImageTargets renderFrame");
+}
+
+void drawTextureFBO(struct engine* engine,void (*drawFunc)()) {
+int i=0;
+    glBindFramebuffer(GL_FRAMEBUFFER, engine->framebufferObject);
+
+    glViewport(0,0,2*engine->width,2*engine->height);
+    // draw a rotating teapot at the origin
+
+    (*drawFunc)();
 
 //    GLubyte* pixels = (GLubyte*) malloc(3*2*engine->width * 3*2*engine->height * sizeof(GLubyte) );
 //    glReadPixels(0,0,2*engine->width,2*engine->height,GL_RGB,GL_UNSIGNED_BYTE,pixels);
@@ -338,28 +343,66 @@ static GLuint init_renderbuffer(GLuint width, GLuint height, GLenum format) {
     return renderbuffer;
 }
 
-/**
- * Initializes FBO.
- */
-static void engine_init_fbo(struct engine* engine, GLuint width, GLuint height) {
-    // create renderable texture
-    glGenTextures(1, &engine->renderableTexture);
-    CheckGlError("engine_init_fbo: glGenTextures");
+static void initTexture(GLuint* texture,GLenum format,GLenum type,GLuint width,GLuint height,GLvoid* pixels) {
+    glGenTextures(1, texture);
+    CheckGlError("initTexture: glGenTextures");
 
-    glBindTexture(GL_TEXTURE_2D, engine->renderableTexture);
-    CheckGlError("engine_init_fbo: glBindTexture");
+    glBindTexture(GL_TEXTURE_2D, *texture);
+    CheckGlError("initTexture: glBindTexture");
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-    CheckGlError("engine_init_fbo: glTexImage2D");
+    if(pixels>0)
+    	glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, pixels);
+    else
+    	glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, 0);
+    CheckGlError("initTexture: glTexImage2D");
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    CheckGlError("engine_init_fbo: glTexParameteri");
+    CheckGlError("initTexture: glTexParameteri");
 
-    LOGI("****************************** engine_init_fbo: texture ID: %d",
-         engine->renderableTexture);
+    LOGI("****************************** initTexture: texture ID: %d", *texture);
+}
+
+static int checkFBOStatus() {
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	    CheckGlError("engine_init_fbo: glCheckFramebufferStatus");
+
+	    if(status != GL_FRAMEBUFFER_COMPLETE) {
+	        switch(status) {
+	            case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+	                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
+	                break;
+
+	            case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+	                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
+	                break;
+
+	            case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+	                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
+	                break;
+
+	            case GL_FRAMEBUFFER_UNSUPPORTED:
+	                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_UNSUPPORTED");
+	                break;
+
+	            default:
+	                LOGI("****************************** engine_init_fbo: Unknown FBO error");
+	        }
+	    }
+	    else {
+	        LOGI("****************************** engine_init_fbo: FBO has been successfully initialized");
+	    }
+	    return status;
+}
+
+/**
+ * Initializes FBO.
+ */
+static void engine_init_fbo(struct engine* engine, GLuint width, GLuint height) {
+    // create renderable texture
+	initTexture(&engine->renderableTexture,GL_RGB,GL_UNSIGNED_BYTE,width,height,0);
 
     // create framebuffer object
     glGenFramebuffers(1, &engine->framebufferObject);
@@ -371,34 +414,7 @@ static void engine_init_fbo(struct engine* engine, GLuint width, GLuint height) 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, engine->renderableTexture, 0);
     CheckGlError("engine_init_fbo: glFramebufferTexture2D");
 
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    CheckGlError("engine_init_fbo: glCheckFramebufferStatus");
-
-    if(status != GL_FRAMEBUFFER_COMPLETE) {
-        switch(status) {
-            case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
-                break;
-
-            case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
-                break;
-
-            case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
-                break;
-
-            case GL_FRAMEBUFFER_UNSUPPORTED:
-                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_UNSUPPORTED");
-                break;
-
-            default:
-                LOGI("****************************** engine_init_fbo: Unknown FBO error");
-        }
-    }
-    else {
-        LOGI("****************************** engine_init_fbo: FBO has been successfully initialized");
-    }
+    checkFBOStatus();
 
     glBindTexture(GL_TEXTURE_2D, 0);
     CheckGlError("engine_init_fbo: glBindTexture");
@@ -504,6 +520,7 @@ static int engine_init_display(struct engine* engine) {
     glViewport(0,0,engine->width,engine->height);
     engine->animating = 1;
     engine->state.rotationDirection = 1;
+    drawTextureFBO(engine,draw);
     return 0;
 }
 
@@ -516,8 +533,6 @@ static void engine_draw_frame(struct engine* engine) {
     	LOGI("No Display");
         return;
     }
-
-    drawTextureFBO(engine);
 
     glClearColor( 0.8f, 0.7f, 0.6f, 1.0f);
     CheckGlError( "glClearColor" );
@@ -597,11 +612,11 @@ static int32_t engine_handle_input(struct android_app* app, AInputEvent* event) 
 		int key_val = AKeyEvent_getKeyCode(event);
 	
 		if(key_val == AKEYCODE_VOLUME_DOWN){
-			LOGI("Received key event: AKEYCODE_VOLUME_DOWN\n");
+//			LOGI("Received key event: AKEYCODE_VOLUME_DOWN\n");
 			scale(scaleFactor-0.05);
 		}
 		if(key_val == AKEYCODE_VOLUME_UP){
-			LOGI("Received key event: AKEYCODE_VOLUME_UP\n");
+//			LOGI("Received key event: AKEYCODE_VOLUME_UP\n");
 			scale(scaleFactor+0.05);
 		}
 		return 0;
