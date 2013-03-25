@@ -30,57 +30,31 @@
 #include "texture.h"
 #include "file.h"
 #include "matrices.h"
-
+#include "framebuffer.h"
+#include "logger.h"
 const int   TEXTURE_WIDTH   = 256;  // NOTE: texture size cannot be larger than
 const int   TEXTURE_HEIGHT  = 256;  // the rendering window size in non-FBO mode
 
-#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "native-activity", __VA_ARGS__))
-#define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "native-activity", __VA_ARGS__))
-#define  Log(...)  __android_log_print( ANDROID_LOG_INFO, "TextureLoader", __VA_ARGS__ )
-#define  LogError(...)  __android_log_print( ANDROID_LOG_ERROR, "TextureLoader", __VA_ARGS__ )
-
-static void CheckGlError( const char* pFunctionName )
-{
-    GLint error = glGetError();
-    if( error != GL_NO_ERROR )
-    {
-        LogError( "%s returned glError 0x%x\n", pFunctionName, error );
-    }
-}
+struct  color {
+	GLubyte r,g,b;
+};
 
 // -------------------------------------------
 
 float scaleFactor = 1.0;
-typedef struct
-{
-    float x;
-    float y;
-//    float u;
-//    float v;
-
-} TriangleVertex;
-
-TriangleVertex gTriangleVertices[] =     { { 1.0f,  1.0f },
-                                            {   -1.0f, -1.0f },
-                                            {   1.0f, -1.0f  },
-                                            {   -1.0f,  1.0f },
-                                            {   -1.0f, -1.0f },
-                                            {   1.0f,  1.0f  } };
-
 TriangleVertex gTriangleVerticesPNG[] =     { { 1.0f,  1.0f },
-                                            {   -1.0f, -1.0f },
-                                            {   1.0f, -1.0f  },
-                                            {   -1.0f,  1.0f },
-                                            {   -1.0f, -1.0f },
-                                            {   1.0f,  1.0f  } };
+											{   -1.0f, -1.0f },
+											{   1.0f, -1.0f  },
+											{   -1.0f,  1.0f },
+											{   -1.0f, -1.0f },
+											{   1.0f,  1.0f  } };
 
 TriangleVertex gTextureCoordsPNG[] =     { { 1.0f, 0.0f  },
-                                            {   0.0f,  1.0f  },
-                                            {    1.0f, 1.0f  },
-                                            {    0.0f,  0.0f  },
-                                            {    0.0f,  1.0f  },
-                                            {    1.0f, 0.0f  } };
-
+											{   0.0f,  1.0f  },
+											{    1.0f, 1.0f  },
+											{    0.0f,  0.0f  },
+											{    0.0f,  1.0f  },
+											{    1.0f, 0.0f  } };
 
 void scale(float factor)
 {
@@ -93,10 +67,27 @@ void scale(float factor)
 //	Log("ScaleFactor: %f",scaleFactor);
 	for (i=0;i<6;i++)
 	{
-		gTriangleVerticesPNG[i].x = gTriangleVertices[i].x * scaleFactor - (1-scaleFactor) ;
-		gTriangleVerticesPNG[i].y = gTriangleVertices[i].y * scaleFactor - (1-scaleFactor) ;
+//		gTriangleVerticesPNG[i].x = gTriangleVertices[i].x * scaleFactor - (1-scaleFactor) ;
+//		gTriangleVerticesPNG[i].y = gTriangleVertices[i].y * scaleFactor - (1-scaleFactor) ;
 //		Log("X: %f Y: %f",gTriangleVerticesPNG[i].x,gTriangleVerticesPNG[i].y);
 	}
+}
+
+GLvoid* generateCheckBoardTextureData(GLuint width,GLuint height, GLuint format){
+    GLbyte* pixels = malloc(3*256*128*sizeof(uint8_t));
+    uint8_t color = 255;
+    int i;
+    for(i=0;i<height*format*width;i+=8*format)
+    {
+    	color = (color == 255) ? 0 : 255;
+    	if(i %(width*format*8) == 0)
+    	{
+    		color = (color == 255) ? 0 : 255;
+    	}
+    	memset(pixels+i,color,3*8);
+
+    }
+    return pixels;
 }
 
 static const char gVertexShader[] =
@@ -226,13 +217,6 @@ GLuint createProgram( const char* pVertexSource, const char* pPixelSource )
     return programHandle;
 }
 
-
-GLuint gProgramHandle;
-GLuint gaPositionHandle;
-GLuint gaTexCoordHandle;
-GLuint gaTexSamplerHandle;
-GLuint gTextureHandlePNG;
-
 /**
  * Our saved state data.
  */
@@ -257,171 +241,9 @@ struct engine {
     int32_t height;
     struct saved_state state;
 
-    GLuint renderableTexture,framebufferObject;
+//    GLuint renderableTexture,framebufferObject;
+    struct framebuffer fb;
 };
-
-void draw(){
-    // clear buffer
-    glClearColor(1, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glUseProgram(gProgramHandle);
-
-	glEnableVertexAttribArray( gaPositionHandle );
-	CheckGlError( "glEnableVertexAttribArray" );
-
-	// Enable tex coords
-	glEnableVertexAttribArray( gaTexCoordHandle );
-	CheckGlError( "glEnableVertexAttribArray" );
-
-	// Set texture sampler
-	glActiveTexture( GL_TEXTURE0 );
-
-	// Enable texture sampler
-	glUniform1i( gaTexSamplerHandle, 0 );
-
-	glVertexAttribPointer( gaPositionHandle, 2, GL_FLOAT, GL_FALSE, sizeof(TriangleVertex), gTriangleVertices );
-	CheckGlError( "glVertexAttribPointer" );
-
-	glVertexAttribPointer( gaTexCoordHandle, 2, GL_FLOAT, GL_FALSE, sizeof(TriangleVertex), gTextureCoordsPNG );
-	CheckGlError( "glVertexAttribPointer" );
-
-	// Set active texture
-	glBindTexture( GL_TEXTURE_2D, gTextureHandlePNG );
-
-	glDrawArrays( GL_TRIANGLES, 0, 6 );
-	CheckGlError("ImageTargets renderFrame");
-}
-
-void drawTextureFBO(struct engine* engine,void (*drawFunc)()) {
-int i=0;
-    glBindFramebuffer(GL_FRAMEBUFFER, engine->framebufferObject);
-
-    glViewport(0,0,2*engine->width,2*engine->height);
-    // draw a rotating teapot at the origin
-
-    (*drawFunc)();
-
-//    GLubyte* pixels = (GLubyte*) malloc(3*2*engine->width * 3*2*engine->height * sizeof(GLubyte) );
-//    glReadPixels(0,0,2*engine->width,2*engine->height,GL_RGB,GL_UNSIGNED_BYTE,pixels);
-//    for(i=0;i<3*2*engine->width * 3*2*engine->height * sizeof(GLubyte);i++)
-//    {
-//    	LOGI("Pixel[%d] = %d",i,pixels[i]);
-//    }
-
-    // back to normal window-system-provided framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, 0); // unbind
-
-    // trigger mipmaps generation explicitly
-    // NOTE: If GL_GENERATE_MIPMAP is set to GL_TRUE, then glCopyTexSubImage2D()
-    // triggers mipmap generation automatically. However, the texture attached
-    // onto a FBO should generate mipmaps manually via glGenerateMipmap().
-    glBindTexture(GL_TEXTURE_2D, engine->renderableTexture);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glViewport(0,0,engine->width,engine->height);
-}
-
-/**
- * Initializes Renderbuffer.
- */
-static GLuint init_renderbuffer(GLuint width, GLuint height, GLenum format) {
-    GLuint renderbuffer;
-
-    glGenRenderbuffers(1, &renderbuffer);
-    CheckGlError("init_renderbuffer: glGenRenderbuffers");
-
-    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
-    CheckGlError("init_renderbuffer: glBindRenderbuffer");
-
-    glRenderbufferStorage(GL_RENDERBUFFER, format, width, height);
-    CheckGlError("init_renderbuffer: glRenderbufferStorage");
-
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    CheckGlError("init_renderbuffer: glBindRenderbuffer");
-
-    return renderbuffer;
-}
-
-static void initTexture(GLuint* texture,GLenum format,GLenum type,GLuint width,GLuint height,GLvoid* pixels) {
-    glGenTextures(1, texture);
-    CheckGlError("initTexture: glGenTextures");
-
-    glBindTexture(GL_TEXTURE_2D, *texture);
-    CheckGlError("initTexture: glBindTexture");
-
-    if(pixels>0)
-    	glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, pixels);
-    else
-    	glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, 0);
-    CheckGlError("initTexture: glTexImage2D");
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    CheckGlError("initTexture: glTexParameteri");
-
-    LOGI("****************************** initTexture: texture ID: %d", *texture);
-}
-
-static int checkFBOStatus() {
-	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	    CheckGlError("engine_init_fbo: glCheckFramebufferStatus");
-
-	    if(status != GL_FRAMEBUFFER_COMPLETE) {
-	        switch(status) {
-	            case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-	                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
-	                break;
-
-	            case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-	                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
-	                break;
-
-	            case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-	                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
-	                break;
-
-	            case GL_FRAMEBUFFER_UNSUPPORTED:
-	                LOGI("****************************** engine_init_fbo: FBO error: FRAMEBUFFER_UNSUPPORTED");
-	                break;
-
-	            default:
-	                LOGI("****************************** engine_init_fbo: Unknown FBO error");
-	        }
-	    }
-	    else {
-	        LOGI("****************************** engine_init_fbo: FBO has been successfully initialized");
-	    }
-	    return status;
-}
-
-/**
- * Initializes FBO.
- */
-static void engine_init_fbo(struct engine* engine, GLuint width, GLuint height) {
-    // create renderable texture
-	initTexture(&engine->renderableTexture,GL_RGB,GL_UNSIGNED_BYTE,width,height,0);
-
-    // create framebuffer object
-    glGenFramebuffers(1, &engine->framebufferObject);
-    CheckGlError("engine_init_fbo: glGenFramebuffers");
-
-    glBindFramebuffer(GL_FRAMEBUFFER, engine->framebufferObject);
-    CheckGlError("engine_init_fbo: glBindFramebuffer");
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, engine->renderableTexture, 0);
-    CheckGlError("engine_init_fbo: glFramebufferTexture2D");
-
-    checkFBOStatus();
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    CheckGlError("engine_init_fbo: glBindTexture");
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    CheckGlError("engine_init_fbo: glBindFramebuffer");
-}
 
 
 /**
@@ -429,7 +251,7 @@ static void engine_init_fbo(struct engine* engine, GLuint width, GLuint height) 
  */
 static int engine_init_display(struct engine* engine) {
     // initialize OpenGL ES and EGL
-
+	int i,j;
     /*
      * Here specify the attributes of the desired configuration.
      * Below, we select an EGLConfig with at least 8 bits per color
@@ -472,7 +294,7 @@ static int engine_init_display(struct engine* engine) {
     context = eglCreateContext(display, config, NULL, context_attrib_list);
 
     if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE) {
-        LOGW("Unable to eglMakeCurrent");
+        Log("Unable to eglMakeCurrent");
         return -1;
     }
 
@@ -494,7 +316,7 @@ static int engine_init_display(struct engine* engine) {
 
     // Init the shaders
     gProgramHandle = createProgram( gVertexShader, gPixelShader );
-    LOGI("Program handle %d",gProgramHandle);
+    Log("Program handle %d",gProgramHandle);
     if( !gProgramHandle )
     {
         LogError( "Could not create program." );
@@ -503,24 +325,28 @@ static int engine_init_display(struct engine* engine) {
 //
     // Read attribute locations from the program
     gaPositionHandle = glGetAttribLocation( gProgramHandle, "aPosition" );
-    LOGI("gaPositionHandle %d",gaPositionHandle);
+    Log("gaPositionHandle %d",gaPositionHandle);
     CheckGlError( "glGetAttribLocation" );
 //
     gaTexCoordHandle = glGetAttribLocation( gProgramHandle, "aTexCoord" );
-    LOGI("gaTexCoordHandle %d",gaTexCoordHandle);
+    Log("gaTexCoordHandle %d",gaTexCoordHandle);
     CheckGlError( "glGetAttribLocation" );
 
     gaTexSamplerHandle = glGetUniformLocation( gProgramHandle, "sTexture" );
-    LOGI("gaTexSamplerHandle %d",gaTexSamplerHandle);
+    Log("gaTexSamplerHandle %d",gaTexSamplerHandle);
     CheckGlError( "glGetUnitformLocation" );
 
     gTextureHandlePNG = LoadTexturePNG("cat.png");
-
-    engine_init_fbo(engine, 2*w, 2*h);
+    glBindTexture( GL_TEXTURE_2D, gTextureHandlePNG );
+    GLvoid* pixels = generateCheckBoardTextureData(256,128,3);
+    GLvoid* scaledPointer = scalePointer(&engine->fb,1.0,pixels,256,128,GL_RGB,GL_UNSIGNED_BYTE);
+    /*
+     * Do whatever you want with resized texture data pointer
+     */
+    free(scaledPointer);
+    free(pixels);
     glViewport(0,0,engine->width,engine->height);
     engine->animating = 1;
-    engine->state.rotationDirection = 1;
-    drawTextureFBO(engine,draw);
     return 0;
 }
 
@@ -530,7 +356,7 @@ static int engine_init_display(struct engine* engine) {
 static void engine_draw_frame(struct engine* engine) {
     if (engine->display == NULL) {
         // No display.
-    	LOGI("No Display");
+    	Log("No Display");
         return;
     }
 
@@ -571,7 +397,7 @@ static void engine_draw_frame(struct engine* engine) {
     glVertexAttribPointer( gaTexCoordHandle, 2, GL_FLOAT, GL_FALSE, sizeof(TriangleVertex), gTextureCoordsPNG );
     CheckGlError( "glVertexAttribPointer" );
 
-    glBindTexture( GL_TEXTURE_2D, engine->renderableTexture );
+    glBindTexture( GL_TEXTURE_2D, engine->fb.renderableTexture );
 
     glDrawArrays( GL_TRIANGLES, 0, 6 );
 
@@ -584,10 +410,7 @@ static void engine_draw_frame(struct engine* engine) {
  */
 static void engine_term_display(struct engine* engine) {
     if (engine->display != EGL_NO_DISPLAY) {
-        glDeleteFramebuffers(1, &engine->framebufferObject);
-        glDeleteTextures(1, &engine->renderableTexture);
-        engine->framebufferObject = 0;
-        engine->renderableTexture = 0;
+    	destroy_fbo(&engine->fb);
         eglMakeCurrent(engine->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         if (engine->context != EGL_NO_CONTEXT) {
             eglDestroyContext(engine->display, engine->context);

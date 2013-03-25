@@ -23,6 +23,7 @@ LOCAL_SRC_FILES := main.c \
                    file.c \
                    texture.c \
 				   stb/stb_image.c \
+				   framebuffer.c \
 				   libktx/checkheader.c \
 				   libktx/etcunpack.c \
 				   libktx/hashtable.c \

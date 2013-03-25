@@ -46,4 +46,3 @@ GLuint LoadTextureETC_PKM( const char* TextureFileName );
 GLuint LoadTexturePVRTC( const char* TextureFileName );
 GLuint LoadTextureS3TC( const char* TextureFileName );
 
-    

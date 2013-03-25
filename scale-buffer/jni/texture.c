@@ -128,7 +128,7 @@ int IsS3TCSupported()
 // Loads a PNG texture and returns a handle
 //
 // PNG loading code provided as public domain by Sean Barrett (http://nothings.org/)
-GLuint LoadTexturePNG( const char* TextureFileName )
+GLuint LoadTexturePNG( const char* TextureFileName)
 {   
     // Load Texture File
     char* pFileData = NULL;
@@ -186,7 +186,7 @@ GLuint LoadTexturePNG( const char* TextureFileName )
             return 0;
         }
     }
-    
+
     // Initialize the texture
     glTexImage2D( GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, pData);
     CheckGlError( "glTexImage2D" );
