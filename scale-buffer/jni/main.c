@@ -159,11 +159,18 @@ GLuint CompileShader( GLenum shaderType, const char* pSource )
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // createProgram - Creates a new program with the given vertex and pixel shader
-GLuint createProgram( const char* pVertexSource, const char* pPixelSource )
+GLuint createProgram( const char* pVertexPath, const char* pFragmentPath )
 {
+    char* pFileData = NULL;
+    unsigned int fileSize = 0;
+	ReadFile(pVertexPath,pFileData,&fileSize);
     // Compile the vertex shader
-    GLuint vertexShaderHandle = CompileShader( GL_VERTEX_SHADER, pVertexSource );
-    GLuint pixelShaderHandle  = CompileShader( GL_FRAGMENT_SHADER, pPixelSource );
+    GLuint vertexShaderHandle = CompileShader( GL_VERTEX_SHADER, pFileData );
+    free(pFileData);
+    pFileData = NULL;
+    ReadFile(pVertexPath,pFileData,&fileSize);
+    GLuint pixelShaderHandle  = CompileShader( GL_FRAGMENT_SHADER, pFileData );
+    free(pFileData);
 
     if( !vertexShaderHandle || !pixelShaderHandle )
     {
@@ -315,7 +322,8 @@ static int engine_init_display(struct engine* engine) {
     glDisable(GL_DEPTH_TEST);
 
     // Init the shaders
-    gProgramHandle = createProgram( gVertexShader, gPixelShader );
+//    gProgramHandle = createProgram( gVertexShader, gPixelShader );
+    gProgramHandle = createProgram( "shaders/vertexShader", "shaders/fragmenShader" );
     Log("Program handle %d",gProgramHandle);
     if( !gProgramHandle )
     {
@@ -336,7 +344,7 @@ static int engine_init_display(struct engine* engine) {
     Log("gaTexSamplerHandle %d",gaTexSamplerHandle);
     CheckGlError( "glGetUnitformLocation" );
 
-    gTextureHandlePNG = LoadTexturePNG("cat.png");
+    gTextureHandlePNG = LoadTexturePNG("images/cat.png");
     glBindTexture( GL_TEXTURE_2D, gTextureHandlePNG );
     GLvoid* pixels = generateCheckBoardTextureData(256,128,3);
     GLvoid* scaledPointer = scalePointer(&engine->fb,1.0,pixels,256,128,GL_RGB,GL_UNSIGNED_BYTE);
