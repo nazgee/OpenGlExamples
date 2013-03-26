@@ -19,9 +19,6 @@
 #include <jni.h>
 #include <errno.h>
 
-#include <EGL/egl.h>
-#include <GLES2/gl2.h>
-
 #include <android/sensor.h>
 #include <android/log.h>
 #include <android_native_app_glue.h>
@@ -34,10 +31,6 @@
 #include "logger.h"
 const int   TEXTURE_WIDTH   = 256;  // NOTE: texture size cannot be larger than
 const int   TEXTURE_HEIGHT  = 256;  // the rendering window size in non-FBO mode
-
-struct  color {
-	GLubyte r,g,b;
-};
 
 // -------------------------------------------
 
@@ -90,30 +83,9 @@ GLvoid* generateCheckBoardTextureData(GLuint width,GLuint height, GLuint format)
     return pixels;
 }
 
-static const char gVertexShader[] =
-    "attribute vec4 aPosition;  \n"
-    "attribute vec2 aTexCoord;  \n"
-    "varying vec2 vTexCoord;    \n"
-    "void main()                \n"
-    "{                          \n"
-    "  vTexCoord = aTexCoord;   \n"
-    "  gl_Position =  aPosition; \n"
-    "}                          \n";
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Simple pixel (aka Fragment) shader
-static const char gPixelShader[] =
-    "precision mediump float;                          \n"
-    "varying vec2 vTexCoord;                           \n"
-    "uniform sampler2D sTexture;                       \n"
-    "void main()                                       \n"
-    "{                                                 \n"
-    "  gl_FragColor = texture2D(sTexture, vTexCoord);  \n"
-    "}                                                 \n";
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // CompileShader - Compiles the passed in string for the given shaderType
-GLuint CompileShader( GLenum shaderType, const char* pSource )
+GLuint CompileShader( GLenum shaderType, const char* pSource , GLint* fileSize )
 {
     // Create a shader handle
     GLuint shaderHandle = glCreateShader( shaderType );
@@ -121,7 +93,7 @@ GLuint CompileShader( GLenum shaderType, const char* pSource )
     if( shaderHandle )
     {
         // Set the shader source
-        glShaderSource( shaderHandle, 1, &pSource, NULL );
+        glShaderSource( shaderHandle, 1, &pSource, fileSize );
 
         // Compile the shader
         glCompileShader( shaderHandle );
@@ -161,21 +133,29 @@ GLuint CompileShader( GLenum shaderType, const char* pSource )
 // createProgram - Creates a new program with the given vertex and pixel shader
 GLuint createProgram( const char* pVertexPath, const char* pFragmentPath )
 {
-    char* pFileData = NULL;
-    unsigned int fileSize = 0;
-	ReadFile(pVertexPath,pFileData,&fileSize);
+    char* pVertexData = NULL;
+    unsigned int vertexFileSize = 0;
+    char* pFragmenData = NULL;
+    unsigned int fragmentFileSize = 0;
+    ReadFile( pVertexPath, &pVertexData, &vertexFileSize );
+	Log("Shader size %d ",vertexFileSize);
+	Log("Shader val \n%s",pVertexData);
     // Compile the vertex shader
-    GLuint vertexShaderHandle = CompileShader( GL_VERTEX_SHADER, pFileData );
-    free(pFileData);
-    pFileData = NULL;
-    ReadFile(pVertexPath,pFileData,&fileSize);
-    GLuint pixelShaderHandle  = CompileShader( GL_FRAGMENT_SHADER, pFileData );
-    free(pFileData);
+    GLuint vertexShaderHandle = CompileShader( GL_VERTEX_SHADER, pVertexData, &vertexFileSize );
+    free(pVertexData);
+    ReadFile(pFragmentPath,&pFragmenData,&fragmentFileSize);
+    Log("Shader size %d ",fragmentFileSize);
+    Log("Shader val \n%s",pFragmenData);
+    GLuint pixelShaderHandle  = CompileShader( GL_FRAGMENT_SHADER, pFragmenData, &fragmentFileSize );
+
+//    free(pFileData);
 
     if( !vertexShaderHandle || !pixelShaderHandle )
     {
         return 0;
     }
+    Log("Vertex file compiled");
+    Log("Fragment file compiled");
 
     // Create a new handle for this program
     GLuint programHandle = glCreateProgram();
@@ -323,7 +303,7 @@ static int engine_init_display(struct engine* engine) {
 
     // Init the shaders
 //    gProgramHandle = createProgram( gVertexShader, gPixelShader );
-    gProgramHandle = createProgram( "shaders/vertexShader", "shaders/fragmenShader" );
+    gProgramHandle = createProgram( "shaders/vertexShader", "shaders/fragmentShader" );
     Log("Program handle %d",gProgramHandle);
     if( !gProgramHandle )
     {

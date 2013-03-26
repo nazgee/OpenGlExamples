@@ -9,6 +9,8 @@
 #define LOGGER_H_
 
 #include <android/log.h>
+#include <EGL/egl.h>
+#include <GLES2/gl2.h>
 
 #define  Log(...)  __android_log_print( ANDROID_LOG_INFO, "TextureLoader", __VA_ARGS__ )
 #define  LogError(...)  __android_log_print( ANDROID_LOG_ERROR, "TextureLoader", __VA_ARGS__ )

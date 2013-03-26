@@ -35,7 +35,7 @@
 #include <sys/types.h>
 #include <android/asset_manager.h>
 #include <android/asset_manager_jni.h>
-
+#include "logger.h"
 #include "file.h"
 
 AAssetManager* g_pManager = NULL;
@@ -58,7 +58,6 @@ void ReadFile( const char* pFileName, char** ppContent, unsigned int* pSize )
     {
         // Determine file size
         off_t fileSize = AAsset_getLength( pFile );
-        
         // Read data
         char* pData = (char*)malloc( fileSize );
         AAsset_read( pFile, pData, fileSize );
@@ -70,6 +69,7 @@ void ReadFile( const char* pFileName, char** ppContent, unsigned int* pSize )
         memcpy( *ppContent, pData, fileSize );
         *pSize = fileSize;
 
+        Log("File length %d",*pSize);
         free( pData );
         
         // Close the file
