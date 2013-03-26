@@ -59,11 +59,11 @@ void ReadFile( const char* pFileName, char** ppContent, unsigned int* pSize )
         // Determine file size
         off_t fileSize = AAsset_getLength( pFile );
         // Read data
-        char* pData = (char*)malloc( fileSize );
+        char* pData = new char[fileSize];
         AAsset_read( pFile, pData, fileSize );
     
         // Allocate space for the file content
-        *ppContent = (char*)malloc( fileSize );
+        *ppContent = new char[fileSize];
     
         // Copy the content
         memcpy( *ppContent, pData, fileSize );

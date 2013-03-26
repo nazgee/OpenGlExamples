@@ -16,20 +16,24 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
+LOCAL_CXX := $(CXX) 
 LOCAL_CFLAGS        := -Werror -DKTX_OPENGL_ES2=1 -DSUPPORT_SOFTWARE_ETC_UNPACK=0 -g -DNDK_DEBUG=1
-LOCAL_C_INCLUDES    := $(LOCAL_PATH)/stb $(LOCAL_PATH)/libktx
+#LOCAL_C_INCLUDES    := $(LOCAL_PATH)/stb $(LOCAL_PATH)/libktx
 LOCAL_MODULE    := native-activity
-LOCAL_SRC_FILES := main.c \
-                   file.c \
-                   texture.c \
-				   stb/stb_image.c \
-				   framebuffer.c \
-				   libktx/checkheader.c \
-				   libktx/etcunpack.c \
-				   libktx/hashtable.c \
-				   libktx/loader.c \
-				   libktx/swap.c \
-				   libktx/writer.c \
+LOCAL_SRC_FILES := main.cpp \
+                   file.cpp \
+				   Framebuffer.cpp \
+				   Scene.cpp \
+				   GLUtils.cpp \
+#                  texture.cpp \
+#   				   framebuffer.cpp \
+#   			   stb/stb_image.cpp \
+#				   libktx/checkheader.c \
+#				   libktx/etcunpack.c \
+#				   libktx/hashtable.c \
+#				   libktx/loader.c \
+#				   libktx/swap.c \
+#				   libktx/writer.c \
 				   
 LOCAL_LDLIBS := -llog -landroid -lEGL -lGLESv2
 LOCAL_STATIC_LIBRARIES := android_native_app_glue
