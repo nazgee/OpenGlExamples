@@ -1,0 +1,11 @@
+After succesfull clone please go to project directory & run below command:
+
+> android update project -p . -s
+
+This will create build.xml file.
+
+Now you can type:
+ndk-build // This command will build all native c++ files and then link into shared library
+ant debug // This will build apk package
+adb install bin/NativeActivity-debug.apk // Now install apk file on your emulator/device
+
