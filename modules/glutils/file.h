@@ -26,53 +26,15 @@
 *
 */
 
-#include <assert.h>
-#include <memory.h>
-#include <stdio.h>
-#include <stdlib.h>
+#pragma once
 
-// for native asset manager
+// For native asset manager
 #include <sys/types.h>
 #include <android/asset_manager.h>
 #include <android/asset_manager_jni.h>
-#include "logger.h"
-#include "file.h"
 
-AAssetManager* g_pManager = NULL;
+// Set the global asset manager
+void SetAssetManager( AAssetManager* pManager );
 
-void SetAssetManager( AAssetManager* pManager )
-{
-    g_pManager = pManager;
-}
-
-// Read the contents of the give file return the content and the file size.
-// The calling function is responsible for free the memory allocated for Content.
-void ReadFile( const char* pFileName, char** ppContent, unsigned int* pSize )
-{  
-    assert( g_pManager );
-    
-    // Open files
-    AAsset* pFile = AAssetManager_open( g_pManager, pFileName, AASSET_MODE_UNKNOWN );
-
-    if( pFile != NULL )
-    {
-        // Determine file size
-        off_t fileSize = AAsset_getLength( pFile );
-        // Read data
-        char* pData = new char[fileSize];
-        AAsset_read( pFile, pData, fileSize );
-    
-        // Allocate space for the file content
-        *ppContent = new char[fileSize];
-    
-        // Copy the content
-        memcpy( *ppContent, pData, fileSize );
-        *pSize = fileSize;
-
-        Log("File length %d",*pSize);
-        delete pData;
-        
-        // Close the file
-        AAsset_close( pFile );
-    }
-}
+// Read the contents of the give file return the content and the file size
+void ReadFile( const char* FileName, char** Content, unsigned int* Size );

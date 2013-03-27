@@ -24,33 +24,6 @@ LOCAL_PATH:= $(call my-dir)
 ##################################################################
 
 # ----------------------------------------------------------------
-# Native code.
-
-include $(CLEAR_VARS)
-
-LOCAL_MODULE_TAGS := samples
-
-LOCAL_C_INCLUDES += \
-		$(TOPDIR)frameworks/base/native/include \
-		$(TOPDIR)frameworks/base/opengl/include \
-		$(TOPDIR)development/ndk/sources/android/native_app_glue
-
-LOCAL_SRC_FILES := \
-	jni/main.c \
-	../../../../sources/android/native_app_glue/android_native_app_glue.c
-
-LOCAL_NDK_VERSION := 4
-LOCAL_SDK_VERSION := 8
-
-LOCAL_SHARED_LIBRARIES := liblog libandroid libEGL libGLESv1_CM
-
-
-
-LOCAL_MODULE := libnative-activity
-
-include $(BUILD_SHARED_LIBRARY)
-
-# ----------------------------------------------------------------
 # Packaging .ap (and Java code if there was some)
 
 include $(CLEAR_VARS)
