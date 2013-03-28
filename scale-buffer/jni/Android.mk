@@ -26,8 +26,8 @@ LOCAL_SRC_FILES := main.cpp \
 #				   file.cpp \
 				   
 LOCAL_LDLIBS := -llog -landroid -lEGL -lGLESv2
-LOCAL_STATIC_LIBRARIES := android_native_app_glue
-LOCAL_SHARED_LIBRARIES := glutils
+LOCAL_STATIC_LIBRARIES := android_native_app_glue glutils
+#LOCAL_SHARED_LIBRARIES := glutils
 include $(BUILD_SHARED_LIBRARY)
 
 $(call import-module,android/native_app_glue)
